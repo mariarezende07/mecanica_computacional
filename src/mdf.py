@@ -68,8 +68,9 @@ class Fusca():
 
         # Init Setup matrix
 
-        T = self.setup_matrix()
-
+        A, b = self.setup_matrix()
+        T = np.linalg.solve(A, b)
+        T = T.reshape((self.Ny, self.Nx))
         print(T)
 
         # Plot contour

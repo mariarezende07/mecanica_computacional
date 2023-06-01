@@ -31,28 +31,45 @@ class Fusca():
         max_iter = 1000
         tolerance = 1e-2
         omega = 1.85
-        for iteration in range(max_iter):
+        for _ in range(max_iter):
             psi_old = psi.copy()
             for i in range(self.Nx):
                 for j in range(self.Ny):
-                    delta_x = x[i]
-                    delta_y = y[j]
-                    if i == 0:
-                        psi[i, j] = psi[i+1, j]
-                    elif i == self.Nx - 1:
-                        psi[i-1, j] = psi[i-2, j]
-                    elif j == 0:
+                    psi_old[i, j] = psi[i, j].copy()
+                    pos_x = x[i]
+                    pos_y = y[j]
+
+                    delta = 1/self.Ny
+
+                    if j == 0:
                         continue
                     elif j == self.Ny - 1:
-                        psi[i, j-1] = psi[i, j-2] + self.V * delta_y
-                    elif (0 <= delta_y <= self.car_height(delta_x)) and (self.d_dominio <= delta_x <= self.d_dominio + self.L_carro):
+                        if i == 0:
+                            psi[i, j] = (delta * self.V *
+                                         psi[i+1, j] + psi[i, j-1])/2
+                        elif i == self.Nx - 1:
+                            psi[i, j] = (delta * self.V +
+                                         psi[i-1, j] + psi[i, j-1])/2
+                        else:
+                            psi[i, j] = (
+                                2 * (psi[i, j-1] + delta * self.V) + psi[i+1, j] + psi[i-1, j])/4
+                    elif i == 0:
+                        psi[i, j] = (delta * self.V *
+                                     psi[i+1, j] + psi[i, j-1])/2
+                    elif i == self.Nx - 1:
+                        psi[i, j] = (delta * self.V +
+                                     psi[i-1, j] + psi[i, j-1])/2
+
+                    elif (pos_y < self.car_height(pos_x)) and (self.d_dominio < pos_x < self.d_dominio + self.L_carro):
                         continue
                     else:
-                        psi[i, j] = (1 - omega) * psi_old[i, j] + omega * ((psi[i + 1, j] + psi[i - 1, j] +
-                                                                           psi[i, j + 1] + psi[i, j - 1]) / 4)
-            print(psi)
+                        psi[i, j] = (
+                            (psi[i + 1, j] + psi[i - 1, j] + psi[i, j + 1] + psi[i, j - 1]) / 4)
 
-            if np.max(np.abs(psi - psi_old)) < tolerance:
+                        psi[i, j] = (1 - omega) * psi_old[i, j] + \
+                            omega * psi[i, j]
+            print(np.nanmax(np.abs((psi - psi_old)/psi)))
+            if np.nanmax(np.abs((psi - psi_old)/psi)) < tolerance:
                 break
 
         return psi
@@ -66,8 +83,7 @@ class Fusca():
 
         # Init Setup matrix
 
-        psi = self.setup_matrix()
-        print(psi)
+        psi = np.transpose(self.setup_matrix())
 
         # Plot contour
         plt.contour(X, Y, psi, levels=20)

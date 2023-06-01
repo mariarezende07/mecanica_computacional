@@ -54,20 +54,20 @@ class Fusca():
                             psi[i, j] = (
                                 2 * (psi[i, j-1] + delta * self.V) + psi[i+1, j] + psi[i-1, j])/4
                     elif i == 0:
-                        psi[i, j] = (delta * self.V *
-                                     psi[i+1, j] + psi[i, j-1])/2
+                        psi[i, j] = (2*psi[i+1, j] +
+                                     psi[i, j-1] + psi[i, j+1])/4
                     elif i == self.Nx - 1:
-                        psi[i, j] = (delta * self.V +
-                                     psi[i-1, j] + psi[i, j-1])/2
+                        psi[i, j] = (2*psi[i-1, j] +
+                                     psi[i, j-1] + psi[i, j+1])/4
 
-                    elif (pos_y < self.car_height(pos_x)) and (self.d_dominio < pos_x < self.d_dominio + self.L_carro):
+                    elif (self.h_carro < pos_y < self.car_height(pos_x)) and (self.d_dominio < pos_x < self.d_dominio + self.L_carro):
                         continue
                     else:
                         psi[i, j] = (
                             (psi[i + 1, j] + psi[i - 1, j] + psi[i, j + 1] + psi[i, j - 1]) / 4)
 
-                        psi[i, j] = (1 - omega) * psi_old[i, j] + \
-                            omega * psi[i, j]
+                    psi[i, j] = (1 - omega) * psi_old[i, j] + \
+                        omega * psi[i, j]
             print(np.nanmax(np.abs((psi - psi_old)/psi)))
             if np.nanmax(np.abs((psi - psi_old)/psi)) < tolerance:
                 break

@@ -93,6 +93,21 @@ class Fusca():
         plt.title('Phi Distribution')
         plt.show()
 
+    def partial_velocities_plot(self):
+        psi = np.transpose(self.setup_matrix())
+        partial_x, partial_y = np.gradient(psi)
+        x = np.arange(psi.shape[1])
+        y = np.arange(psi.shape[0])
+        X, Y = np.meshgrid(x, y)
+
+        # Plot the partial derivatives
+        plt.figure(figsize=(6, 4))
+        plt.quiver(X, Y, partial_x, partial_y)
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.title('Partial derivatives with respect to x and y')
+        plt.show()
+
 
 fusca = Fusca()
-fusca.plot()
+fusca.partial_velocities_plot()

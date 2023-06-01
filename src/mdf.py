@@ -23,41 +23,39 @@ class Fusca():
 
     def setup_matrix(self):
         # Define zero matrix with 2D linearization to 1D space
-        A = np.zeros((self.Nx*self.Ny, self.Nx*self.Ny))
-        b = np.zeros(self.Nx*self.Ny)
+        psi = np.zeros((self.Nx, self.Ny))
 
         x = np.linspace(0, self.x_dominio, self.Nx)
         y = np.linspace(0, self.y_dominio, self.Ny)
 
-        for i in range(self.Nx):
-            for j in range(self.Ny):
-                k = self.index(i, j)
-                if j == 0:
-                    A[k, k] = 1
-                    b[k] = 0
-                else:
-                    x_coord = x[i]
-                    y_coord = y[j]
-                    if i == 0 or i == self.Nx - 1:
-                        A[k, k] = -1.0
-                        A[k, self.index(i - 1, j)] = 1.0
-                        b[k] = 0.0
+        max_iter = 1000
+        tolerance = 1e-2
+        omega = 1.85
+        for iteration in range(max_iter):
+            psi_old = psi.copy()
+            for i in range(self.Nx):
+                for j in range(self.Ny):
+                    delta_x = x[i]
+                    delta_y = y[j]
+                    if i == 0:
+                        psi[i, j] = psi[i+1, j]
+                    elif i == self.Nx - 1:
+                        psi[i-1, j] = psi[i-2, j]
+                    elif j == 0:
+                        continue
                     elif j == self.Ny - 1:
-                        A[k, k] = -3.0
-                        A[k, self.index(i, j - 1)] = 4.0
-                        b[k] = 4.0 * self.V * \
-                            (1.0 / (self.y_dominio/self.Ny))
-                    elif (0 <= y_coord <= self.car_height(x_coord)) and (self.d_dominio <= x_coord <= self.d_dominio + self.L_carro):
-                        A[k, k] = 1
-                        b[k] = 0
+                        psi[i, j-1] = psi[i, j-2] + self.V * delta_y
+                    elif (0 <= delta_y <= self.car_height(delta_x)) and (self.d_dominio <= delta_x <= self.d_dominio + self.L_carro):
+                        continue
                     else:
-                        A[k, k] = -4.0
-                        A[k, self.index(i - 1, j)] = 1.0
-                        A[k, self.index(i + 1, j)] = 1.0
-                        A[k, self.index(i, j - 1)] = 1.0
-                        A[k, self.index(i, j + 1)] = 1.0
+                        psi[i, j] = (1 - omega) * psi_old[i, j] + omega * ((psi[i + 1, j] + psi[i - 1, j] +
+                                                                           psi[i, j + 1] + psi[i, j - 1]) / 4)
+            print(psi)
 
-        return A, b
+            if np.max(np.abs(psi - psi_old)) < tolerance:
+                break
+
+        return psi
 
     def plot(self):
 
@@ -68,13 +66,11 @@ class Fusca():
 
         # Init Setup matrix
 
-        A, b = self.setup_matrix()
-        T = np.linalg.solve(A, b)
-        T = T.reshape((self.Ny, self.Nx))
-        print(T)
+        psi = self.setup_matrix()
+        print(psi)
 
         # Plot contour
-        plt.contour(X, Y, T, levels=20)
+        plt.contour(X, Y, psi, levels=20)
         plt.colorbar(label='Phi')
         plt.xlabel('x')
         plt.ylabel('y')

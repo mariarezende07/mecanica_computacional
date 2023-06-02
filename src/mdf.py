@@ -34,16 +34,66 @@ class Fusca():
             (x_pos < self.d_dominio + self.L_carro)
         )
 
-    def distance_from_circle(self, x_pos, y_pos):
-        return np.sqrt((x_pos - self.d_dominio - self.L_carro/2) ** 2 + (y_pos - self.h_carro)**2)
+    def right_circle_border(self, y_pos, x_pos, delta):
+        a = (
+            x_pos
+            -
+            self.d_dominio
+            -
+            self.L_carro/2
+            -
+            np.sqrt(
+                (self.L_carro/2)**2
+                -
+                (y_pos - self.h_carro)**2
+            )
+        ) / delta
 
-    def circle_border(self, x_pos, y_pos, delta):
-        a = (self.d_dominio + self.L_carro/2 - x_pos -
-             np.sqrt((self.L_carro/2)**2 - (y_pos - self.h_carro)**2))/(delta)
-        b = (y_pos - self.h_carro - np.sqrt((self.L_carro/2) **
-             2 - (self.d_dominio + self.L_carro/2 - x_pos)**2))/(delta)
+        b = (
+            y_pos
+            -
+            self.h_carro
+            -
+            np.sqrt(
+                (self.L_carro/2)**2
+                -
+                (self.d_dominio + self.L_carro/2 - x_pos)**2
+            )
+        ) / delta
 
         return a, b
+
+    def left_circle_border(self, y_pos, x_pos, delta):
+        a = (
+            self.d_dominio
+            +
+            self.L_carro/2
+            -
+            x_pos
+            -
+            np.sqrt(
+                (self.L_carro/2)**2
+                -
+                (y_pos - self.h_carro)**2
+            )
+        ) / delta
+
+        b = (
+            y_pos
+            -
+            self.h_carro
+            -
+            np.sqrt(
+                (self.L_carro/2)**2
+                -
+                (self.d_dominio + self.L_carro/2 - x_pos)**2
+            )
+        ) / delta
+
+        return a, b
+
+    def distance_from_circle(self, x_pos, y_pos):
+        return np.sqrt((x_pos - self.d_dominio - self.L_carro/2) ** 2 + (y_pos - self.h_carro)**2)
 
     def setup_matrix(self):
         # Define zero matrix with 2D linearization to 1D space
@@ -93,10 +143,11 @@ class Fusca():
                                      (2*psi[i, j - 1]) / (a+1))/(2/a + 2))
 
                     elif (self.distance_from_circle(pos_x, pos_y) - self.L_carro/2 < delta) and (self.distance_from_circle(pos_x, pos_y) > self.L_carro/2) and (pos_y > self.h_carro):
-                        a, b = self.circle_border(
-                            x_pos=pos_x, y_pos=pos_y, delta=delta)
+
                         if pos_x < self.x_dominio/2:
                             # Left circle border
+                            a, b = self.left_circle_border(
+                                x_pos=pos_x, y_pos=pos_y, delta=delta)
                             if (a < 1 and b < 1):
                                 psi[i, j] = (
                                     2*a*psi[i-1, j]
@@ -108,6 +159,8 @@ class Fusca():
                                     (b*(1+b))
                                 ) / (2/a + 2/b)
                             elif (a < 1 and not b < 1):
+                                a, b = self.right_circle_border(
+                                    x_pos=pos_x, y_pos=pos_y, delta=delta)
                                 psi[i, j] = (
                                     2*a*psi[i-1, j]
                                     /

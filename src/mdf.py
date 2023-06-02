@@ -12,8 +12,8 @@ class Fusca():
         self.x_dominio = (2*self.d_dominio + self.L_carro)
         self.y_dominio = 6
 
-        self.Nx = 200
-        self.Ny = 200
+        self.Nx = 600
+        self.Ny = 600
         self.psi = np.transpose(self.setup_matrix())
 
     def car_height(self, x):
@@ -63,7 +63,7 @@ class Fusca():
                     pos_x = x[i]
                     pos_y = y[j]
 
-                    delta = 1/self.Ny
+                    delta = self.y_dominio/self.Ny
 
                     if j == 0:
                         continue
@@ -164,7 +164,7 @@ class Fusca():
 
                     psi[i, j] = (1 - omega) * psi_old[i, j] + \
                         omega * psi[i, j]
-            print(np.nanmax(np.abs((psi - psi_old)/psi)))
+         
             if np.nanmax(np.abs((psi - psi_old)/psi)) < tolerance:
                 break
 

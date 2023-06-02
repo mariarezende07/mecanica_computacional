@@ -12,8 +12,8 @@ class Fusca():
         self.x_dominio = (2*self.d_dominio + self.L_carro)
         self.y_dominio = 6
 
-        self.Nx = 600
-        self.Ny = 600
+        self.Nx = 100
+        self.Ny = 100
         self.psi = np.transpose(self.setup_matrix())
 
     def car_height(self, x):
@@ -37,11 +37,11 @@ class Fusca():
     def distance_from_circle(self, x_pos, y_pos):
         return np.sqrt((x_pos - self.d_dominio - self.L_carro/2) ** 2 + (y_pos - self.h_carro)**2)
 
-    def circle_border(self, x_pos, y_pos):
-        a = self.d_dominio + self.L_carro/2 - x_pos - \
-            np.sqrt((self.L_carro/2)**2 - (y_pos - self.h_carro)**2)/(1/self.Ny)
+    def circle_border(self, x_pos, y_pos, delta):
+        a = (self.d_dominio + self.L_carro/2 - x_pos -
+             np.sqrt((self.L_carro/2)**2 - (y_pos - self.h_carro)**2))/(delta)
         b = (y_pos - self.h_carro - np.sqrt((self.L_carro/2) **
-             2 - (self.d_dominio + self.L_carro/2 - x_pos)**2))/(1/self.Ny)
+             2 - (self.d_dominio + self.L_carro/2 - x_pos)**2))/(delta)
 
         return a, b
 
@@ -93,7 +93,8 @@ class Fusca():
                                      (2*psi[i, j - 1]) / (a+1))/(2/a + 2))
 
                     elif (self.distance_from_circle(pos_x, pos_y) - self.L_carro/2 < delta) and (self.distance_from_circle(pos_x, pos_y) > self.L_carro/2) and (pos_y > self.h_carro):
-                        a, b = self.circle_border(x_pos=pos_x, y_pos=pos_y)
+                        a, b = self.circle_border(
+                            x_pos=pos_x, y_pos=pos_y, delta=delta)
                         if pos_x < self.x_dominio/2:
                             # Left circle border
                             if (a < 1 and b < 1):
@@ -156,7 +157,7 @@ class Fusca():
                                 ) / (2 + 2/b)
                             else:
                                 psi[i, j] = (
-                                    (psi[i + 1, j] + psi[i - 1, j] + psi[i, j + 1] + psi[i, j - 1]) / 4)                            
+                                    (psi[i + 1, j] + psi[i - 1, j] + psi[i, j + 1] + psi[i, j - 1]) / 4)
 
                     else:
                         psi[i, j] = (
@@ -164,7 +165,7 @@ class Fusca():
 
                     psi[i, j] = (1 - omega) * psi_old[i, j] + \
                         omega * psi[i, j]
-         
+
             if np.nanmax(np.abs((psi - psi_old)/psi)) < tolerance:
                 break
 

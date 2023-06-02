@@ -12,9 +12,14 @@ class Fusca():
         self.x_dominio = (2*self.d_dominio + self.L_carro)
         self.y_dominio = 6
 
-        self.Nx = 100
-        self.Ny = 100
+        self.delta = 0.01
+        self.x = np.arange(0, self.x_dominio, self.delta)
+        self.y = np.arange(0, self.y_dominio, self.delta)
+
+        self.Nx = len(self.x)
+        self.Ny = len(self.y)
         self.psi = np.transpose(self.setup_matrix())
+        
 
     def car_height(self, x):
         return np.sqrt(((self.L_carro/2)**2) - (x - self.d_dominio - (self.L_carro/2))**2) + self.h_carro
@@ -98,10 +103,11 @@ class Fusca():
     def setup_matrix(self):
         # Define zero matrix with 2D linearization to 1D space
         psi = np.zeros((self.Nx, self.Ny))
-
-        x = np.linspace(0, self.x_dominio, self.Nx)
-        y = np.linspace(0, self.y_dominio, self.Ny)
-
+        
+        delta = self.delta
+        
+        x = self.x
+        y = self.y
         max_iter = 1000
         tolerance = 1e-2
         omega = 1.85
@@ -112,8 +118,6 @@ class Fusca():
                     psi_old[i, j] = psi[i, j].copy()
                     pos_x = x[i]
                     pos_y = y[j]
-
-                    delta = self.y_dominio/self.Ny
 
                     if j == 0:
                         continue

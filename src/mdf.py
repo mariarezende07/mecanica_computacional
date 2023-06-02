@@ -4,22 +4,38 @@ import numpy as np
 
 class Fusca():
     def __init__(self) -> None:
-        self.V = 27.78  # m/s
+        self.V = 100/3.6  # m/s
         self.h_carro = 0.15
         self.L_carro = 3
         self.d_dominio = 1.5
 
-        self.x_dominio = 6
+        self.x_dominio = (2*self.d_dominio + self.L_carro)
         self.y_dominio = 6
 
-        self.Nx = 100
-        self.Ny = 100
+        self.Nx = 200
+        self.Ny = 200
+        self.psi = np.transpose(self.setup_matrix())
 
     def car_height(self, x):
         return np.sqrt(((self.L_carro/2)**2) - (x - self.d_dominio - (self.L_carro/2))**2) + self.h_carro
 
-    def index(self, i, j):
-        return j * self.Nx + i
+    def inside_car(self, x, y):
+        return (self.distance_from_circle(x, y) < self.L_carro/2) & (y > self.h_carro)
+
+    def circle_bottom_border(self, y_pos, x_pos, delta):
+
+        return (
+            (self.h_carro - y_pos < delta)
+            &
+            (y_pos < self.h_carro)
+            &
+            (x_pos > self.d_dominio)
+            &
+            (x_pos < self.d_dominio + self.L_carro)
+        )
+
+    def distance_from_circle(self, x_pos, y_pos):
+        return np.sqrt((x_pos - self.d_dominio - self.L_carro/2) ** 2 + (y_pos - self.h_carro)**2)
 
     def setup_matrix(self):
         # Define zero matrix with 2D linearization to 1D space
@@ -45,7 +61,7 @@ class Fusca():
                         continue
                     elif j == self.Ny - 1:
                         if i == 0:
-                            psi[i, j] = (delta * self.V *
+                            psi[i, j] = (delta * self.V +
                                          psi[i+1, j] + psi[i, j-1])/2
                         elif i == self.Nx - 1:
                             psi[i, j] = (delta * self.V +
@@ -60,8 +76,23 @@ class Fusca():
                         psi[i, j] = (2*psi[i-1, j] +
                                      psi[i, j-1] + psi[i, j+1])/4
 
-                    elif (self.h_carro < pos_y < self.car_height(pos_x)) and (self.d_dominio < pos_x < self.d_dominio + self.L_carro):
+                    elif self.inside_car(pos_x, pos_y):
                         continue
+                    # Circle bottom border
+                    elif self.circle_bottom_border(x_pos=pos_x, y_pos=pos_y, delta=delta):
+                        a = ((self.h_carro - pos_y) / delta)
+                        psi[i, j] = ((psi[i+1, j]+psi[i-1, j] +
+                                     (2*psi[i, j - 1]) / (a+1))/(2/a + 2))
+
+                    elif (self.distance_from_circle(pos_x, pos_y) - self.L_carro/2 < delta) and (self.distance_from_circle(pos_x, pos_y) > self.L_carro/2) and (pos_y > self.h_carro):
+                        if pos_x < self.x_dominio/2:
+                            # Left circle border
+                            continue
+                        else:
+                            # Right circle border
+                            continue
+
+                        
                     else:
                         psi[i, j] = (
                             (psi[i + 1, j] + psi[i - 1, j] + psi[i, j + 1] + psi[i, j - 1]) / 4)
@@ -83,7 +114,7 @@ class Fusca():
 
         # Init Setup matrix
 
-        psi = np.transpose(self.setup_matrix())
+        psi = self.psi
 
         # Plot contour
         plt.contour(X, Y, psi, levels=20)
@@ -93,21 +124,12 @@ class Fusca():
         plt.title('Phi Distribution')
         plt.show()
 
-    def partial_velocities_plot(self):
-        psi = np.transpose(self.setup_matrix())
+    def partial_velocities(self):
+        psi = self.psi
         partial_x, partial_y = np.gradient(psi)
         x = np.arange(psi.shape[1])
         y = np.arange(psi.shape[0])
-        X, Y = np.meshgrid(x, y)
-
-        # Plot the partial derivatives
-        plt.figure(figsize=(6, 4))
-        plt.quiver(X, Y, partial_x, partial_y)
-        plt.xlabel('x')
-        plt.ylabel('y')
-        plt.title('Partial derivatives with respect to x and y')
-        plt.show()
 
 
 fusca = Fusca()
-fusca.partial_velocities_plot()
+fusca.plot()

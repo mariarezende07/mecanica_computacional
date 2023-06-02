@@ -20,22 +20,30 @@ class Fusca():
         return np.sqrt(((self.L_carro/2)**2) - (x - self.d_dominio - (self.L_carro/2))**2) + self.h_carro
 
     def inside_car(self, x, y):
-        return (self.distance_from_circle(x, y) < self.L_carro/2) & (y > self.h_carro)
+        return (self.distance_from_circle(x, y) < self.L_carro/2) and (y > self.h_carro)
 
     def circle_bottom_border(self, y_pos, x_pos, delta):
 
         return (
             (self.h_carro - y_pos < delta)
-            &
+            and
             (y_pos < self.h_carro)
-            &
+            and
             (x_pos > self.d_dominio)
-            &
+            and
             (x_pos < self.d_dominio + self.L_carro)
         )
 
     def distance_from_circle(self, x_pos, y_pos):
         return np.sqrt((x_pos - self.d_dominio - self.L_carro/2) ** 2 + (y_pos - self.h_carro)**2)
+
+    def circle_border(self, x_pos, y_pos):
+        a = self.d_dominio + self.L_carro/2 - x_pos - \
+            np.sqrt((self.L_carro/2)**2 - (y_pos - self.h_carro)**2)/(1/self.Ny)
+        b = (y_pos - self.h_carro - np.sqrt((self.L_carro/2) **
+             2 - (self.d_dominio + self.L_carro/2 - x_pos)**2))/(1/self.Ny)
+
+        return a, b
 
     def setup_matrix(self):
         # Define zero matrix with 2D linearization to 1D space
@@ -85,14 +93,71 @@ class Fusca():
                                      (2*psi[i, j - 1]) / (a+1))/(2/a + 2))
 
                     elif (self.distance_from_circle(pos_x, pos_y) - self.L_carro/2 < delta) and (self.distance_from_circle(pos_x, pos_y) > self.L_carro/2) and (pos_y > self.h_carro):
+                        a, b = self.circle_border(x_pos=pos_x, y_pos=pos_y)
                         if pos_x < self.x_dominio/2:
                             # Left circle border
-                            continue
+                            if (a < 1 and b < 1):
+                                psi[i, j] = (
+                                    2*a*psi[i-1, j]
+                                    /
+                                    (a*(1+a))
+                                    +
+                                    2*(b*psi[i, j+1])
+                                    /
+                                    (b*(1+b))
+                                ) / (2/a + 2/b)
+                            elif (a < 1 and not b < 1):
+                                psi[i, j] = (
+                                    2*a*psi[i-1, j]
+                                    /
+                                    (a*(1+a))
+                                    +
+                                    (psi[i, j-1] + psi[i, j+1])
+                                ) / (2/a + 2)
+                            elif (b < 1 and not a < 1):
+                                psi[i, j] = (
+                                    (psi[i+1, j] + psi[i-1, j])
+                                    +
+                                    2*(b*psi[i, j+1])
+                                    /
+                                    (b*(1+b))
+                                ) / (2 + 2/b)
+                            else:
+                                psi[i, j] = (
+                                    (psi[i + 1, j] + psi[i - 1, j] + psi[i, j + 1] + psi[i, j - 1]) / 4)
+
                         else:
                             # Right circle border
-                            continue
+                            if (a < 1 and b < 1):
+                                psi[i, j] = (
+                                    2*a*psi[i+1, j]
+                                    /
+                                    (a*(1+a))
+                                    +
+                                    2*(b*psi[i, j+1])
+                                    /
+                                    (b*(1+b))
+                                ) / (2/a + 2/b)
+                            elif (a < 1 and not b < 1):
+                                psi[i, j] = (
+                                    2*a*psi[i+1, j]
+                                    /
+                                    (a*(1+a))
+                                    +
+                                    (psi[i, j-1] + psi[i, j+1])
+                                ) / (2/a + 2)
+                            elif (b < 1 and not a < 1):
+                                psi[i, j] = (
+                                    (psi[i-1, j] + psi[i+1, j])
+                                    +
+                                    2*(b*psi[i, j+1])
+                                    /
+                                    (b*(1+b))
+                                ) / (2 + 2/b)
+                            else:
+                                psi[i, j] = (
+                                    (psi[i + 1, j] + psi[i - 1, j] + psi[i, j + 1] + psi[i, j - 1]) / 4)                            
 
-                        
                     else:
                         psi[i, j] = (
                             (psi[i + 1, j] + psi[i - 1, j] + psi[i, j + 1] + psi[i, j - 1]) / 4)

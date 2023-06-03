@@ -29,6 +29,7 @@ class Fusca():
         self.p_atm = 101.325
         self.rho = 1.25
         self.gamma_ar = 1.4
+
     def car_height(self, x):
         return np.sqrt(((self.L_carro/2)**2) - (x - self.d_dominio - (self.L_carro/2))**2) + self.h_carro
 
@@ -266,14 +267,16 @@ class Fusca():
         plt.figure(figsize=(10, 5))
 
         plt.subplot(1, 2, 1)
-        plt.imshow(u, cmap='plasma', origin='lower', extent=[0, self.Nx * self.delta, 0, self.Ny * self.delta])
+        plt.imshow(u, cmap='plasma', origin='lower', extent=[
+                   0, self.Nx * self.delta, 0, self.Ny * self.delta])
         plt.colorbar(label='Gradient along x-direction')
         plt.xlabel('X')
         plt.ylabel('Y')
         plt.title('Gradient along x-direction')
 
         plt.subplot(1, 2, 2)
-        plt.imshow(v, cmap='plasma', origin='lower', extent=[0, self.Nx * self.delta, 0, self.Nx * self.delta])
+        plt.imshow(v, cmap='plasma', origin='lower', extent=[
+                   0, self.Nx * self.delta, 0, self.Nx * self.delta])
         plt.colorbar(label='Gradient along y-direction')
         plt.xlabel('X')
         plt.ylabel('Y')
@@ -305,19 +308,24 @@ class Fusca():
 
         # Plot contour
         plt.figure(figsize=(8, 6))
-        plt.imshow(p, cmap='plasma', origin='lower', extent=[0, self.Nx * self.delta, 0, self.Nx * self.delta])
+        plt.imshow(p, cmap='plasma', origin='lower', extent=[
+                   0, self.Nx * self.delta, 0, self.Nx * self.delta])
         plt.colorbar(label='Pressure')
-        
+
         plt.xlabel('x')
         plt.ylabel('y')
         plt.title('Pressure Distribution')
         plt.show()
 
     def calc_lift_force(self):
-        p = self.pressure_calc_in_domain
-        return np.sum(p)
-        
+        p = self.pressure_calc_in_domain()
+        x = np.arange(0, self.x_dominio, self.delta)
+        y = np.arange(0, self.y_dominio, self.delta)
+
+        Fx = np.sum(p * x * self.delta)
+        Fy = np.sum(p * y * self.delta)
+        return Fx, Fy
 
 
 fusca = Fusca(use_saved_matrix=True)
-fusca.plot_pressure_heatmap()
+print(fusca.calc_lift_force())

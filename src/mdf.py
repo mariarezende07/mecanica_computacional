@@ -19,12 +19,12 @@ class Fusca():
         self.Nx = len(self.x)
         self.Ny = len(self.y)
         if use_saved_matrix:
-            with open('utils/psi_matrix.npy', 'rb') as f:
+            with open('src/utils/psi_matrix.npy', 'rb') as f:
                 self.psi = np.load(f)
         else:
-            with open('utils/psi_matrix.npy', 'wb') as f:
-                self.psi = np.transpose(f, self.setup_matrix())
-                np.save(self.psi)
+            with open('src/utils/psi_matrix.npy', 'wb') as f:
+                self.psi = np.transpose(self.setup_matrix())
+                np.save(f, self.psi)
 
     def car_height(self, x):
         return np.sqrt(((self.L_carro/2)**2) - (x - self.d_dominio - (self.L_carro/2))**2) + self.h_carro
@@ -113,8 +113,8 @@ class Fusca():
 
         x = self.x
         y = self.y
-        max_iter = 1000
-        tolerance = 1e-2
+        max_iter = 10000
+        tolerance = 1e-4
         omega = 1.85
         for _ in range(max_iter):
             psi_old = psi.copy()
@@ -251,14 +251,33 @@ class Fusca():
         plt.show()
 
     def calc_partial_velocities(self):
-        x = np.arange(0, self.x_dominio, self.delta)
-        y = np.arange(0, self.y_dominio, self.delta)
-        u = np.gradient(self.psi, x)
-        v = -np.gradient(self.psi, y)
-        return u, v
+        u, v = np.gradient(self.psi, self.delta)
+        return u, -v
 
     def plot_partial_velocities(self):
-        pass
+        x = np.arange(0, self.x_dominio, self.delta)
+        y = np.arange(0, self.y_dominio, self.delta)
+        X, Y = np.meshgrid(x, y)
+
+        u, v = self.calc_partial_velocities()
+        plt.figure(figsize=(10, 5))
+
+        plt.subplot(1, 2, 1)
+        plt.imshow(u, cmap='plasma', origin='lower', extent=[0, self.Nx * self.delta, 0, self.Ny * self.delta])
+        plt.colorbar(label='Gradient along x-direction')
+        plt.xlabel('X')
+        plt.ylabel('Y')
+        plt.title('Gradient along x-direction')
+
+        plt.subplot(1, 2, 2)
+        plt.imshow(v, cmap='plasma', origin='lower', extent=[0, self.Nx * self.delta, 0, self.Nx * self.delta])
+        plt.colorbar(label='Gradient along y-direction')
+        plt.xlabel('X')
+        plt.ylabel('Y')
+        plt.title('Gradient along y-direction')
+
+        plt.tight_layout()
+        plt.show()
 
     def pressure_calc_in_domain(self):
         p = np.zeros((self.Nx, self.Ny))
@@ -276,8 +295,8 @@ class Fusca():
     def calc_lift_force(self):
         p = self.pressure_calc_in_domain
         return np.sum(p)
-    
+        
 
 
-fusca = Fusca()
-fusca.partial_velocities()
+fusca = Fusca(use_saved_matrix=True)
+fusca.plot_partial_velocities()

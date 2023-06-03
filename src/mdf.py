@@ -3,7 +3,7 @@ import numpy as np
 
 
 class Fusca():
-    def __init__(self) -> None:
+    def __init__(self, use_saved_matrix) -> None:
         self.V = 100/3.6  # m/s
         self.h_carro = 0.15
         self.L_carro = 3
@@ -12,14 +12,19 @@ class Fusca():
         self.x_dominio = (2*self.d_dominio + self.L_carro)
         self.y_dominio = 6
 
-        self.delta = 0.01
+        self.delta = 0.05
         self.x = np.arange(0, self.x_dominio, self.delta)
         self.y = np.arange(0, self.y_dominio, self.delta)
 
         self.Nx = len(self.x)
         self.Ny = len(self.y)
-        self.psi = np.transpose(self.setup_matrix())
-        
+        if use_saved_matrix:
+            with open('utils/psi_matrix.npy', 'rb') as f:
+                self.psi = np.load(f)
+        else:
+            with open('utils/psi_matrix.npy', 'wb') as f:
+                self.psi = np.transpose(f, self.setup_matrix())
+                np.save(self.psi)
 
     def car_height(self, x):
         return np.sqrt(((self.L_carro/2)**2) - (x - self.d_dominio - (self.L_carro/2))**2) + self.h_carro
@@ -103,9 +108,9 @@ class Fusca():
     def setup_matrix(self):
         # Define zero matrix with 2D linearization to 1D space
         psi = np.zeros((self.Nx, self.Ny))
-        
+
         delta = self.delta
-        
+
         x = self.x
         y = self.y
         max_iter = 1000
@@ -116,36 +121,35 @@ class Fusca():
             for i in range(self.Nx):
                 for j in range(self.Ny):
                     psi_old[i, j] = psi[i, j].copy()
-                    pos_x = x[i]
-                    pos_y = y[j]
+                    pos_x = x[i]  # Current position at x axis
+                    pos_y = y[j]  # Current position at y axis
 
-                    if j == 0:
+                    if j == 0:  # Bottom border points
                         continue
-                    elif j == self.Ny - 1:
-                        if i == 0:
+                    elif j == self.Ny - 1:  # Top border points
+                        if i == 0:  # Top left corner points
                             psi[i, j] = (delta * self.V +
                                          psi[i+1, j] + psi[i, j-1])/2
-                        elif i == self.Nx - 1:
+                        elif i == self.Nx - 1:  # Top right corner points
                             psi[i, j] = (delta * self.V +
                                          psi[i-1, j] + psi[i, j-1])/2
-                        else:
+                        else:  # Inner top points
                             psi[i, j] = (
                                 2 * (psi[i, j-1] + delta * self.V) + psi[i+1, j] + psi[i-1, j])/4
-                    elif i == 0:
+                    elif i == 0:  # Left border points
                         psi[i, j] = (2*psi[i+1, j] +
                                      psi[i, j-1] + psi[i, j+1])/4
-                    elif i == self.Nx - 1:
+                    elif i == self.Nx - 1:  # RIght border points
                         psi[i, j] = (2*psi[i-1, j] +
                                      psi[i, j-1] + psi[i, j+1])/4
 
-                    elif self.inside_car(pos_x, pos_y):
-                        continue
                     # Circle bottom border
                     elif self.circle_bottom_border(x_pos=pos_x, y_pos=pos_y, delta=delta):
                         a = ((self.h_carro - pos_y) / delta)
                         psi[i, j] = ((psi[i+1, j]+psi[i-1, j] +
                                      (2*psi[i, j - 1]) / (a+1))/(2/a + 2))
 
+                    # Check if point is in the border
                     elif (self.distance_from_circle(pos_x, pos_y) - self.L_carro/2 < delta) and (self.distance_from_circle(pos_x, pos_y) > self.L_carro/2) and (pos_y > self.h_carro):
 
                         if pos_x < self.x_dominio/2:
@@ -215,8 +219,11 @@ class Fusca():
                             else:
                                 psi[i, j] = (
                                     (psi[i + 1, j] + psi[i - 1, j] + psi[i, j + 1] + psi[i, j - 1]) / 4)
+                    # Check if point is inside car
+                    elif self.inside_car(pos_x, pos_y):
+                        continue
 
-                    else:
+                    else:  # Inner points
                         psi[i, j] = (
                             (psi[i + 1, j] + psi[i - 1, j] + psi[i, j + 1] + psi[i, j - 1]) / 4)
 
@@ -228,31 +235,31 @@ class Fusca():
 
         return psi
 
-    def plot(self):
+    def plot_psi(self):
 
         # Define meshgrid
-        x = np.linspace(0, self.x_dominio, self.Nx)
-        y = np.linspace(0, self.y_dominio, self.Ny)
+        x = np.arange(0, self.x_dominio, self.delta)
+        y = np.arange(0, self.y_dominio, self.delta)
         X, Y = np.meshgrid(x, y)
 
-        # Init Setup matrix
-
-        psi = self.psi
-
         # Plot contour
-        plt.contour(X, Y, psi, levels=20)
+        plt.contour(X, Y,  self.psi, levels=20)
         plt.colorbar(label='Phi')
         plt.xlabel('x')
         plt.ylabel('y')
         plt.title('Phi Distribution')
         plt.show()
 
-    def partial_velocities(self):
-        psi = self.psi
-        partial_x, partial_y = np.gradient(psi)
-        x = np.arange(psi.shape[1])
-        y = np.arange(psi.shape[0])
+    def calc_partial_velocities(self):
+        x = np.arange(0, self.x_dominio, self.delta)
+        y = np.arange(0, self.y_dominio, self.delta)
+        partial_x = np.gradient(self.psi, x)
+        partial_y = -np.gradient(self.psi, y)
+        return partial_x, partial_y
+
+    def plot_partial_velocities(self):
+        pass
 
 
 fusca = Fusca()
-fusca.plot()
+fusca.partial_velocities()

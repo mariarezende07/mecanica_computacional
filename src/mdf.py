@@ -26,6 +26,9 @@ class Fusca():
                 self.psi = np.transpose(self.setup_matrix())
                 np.save(f, self.psi)
 
+        self.p_atm = 101.325
+        self.rho = 1.25
+        self.gamma_ar = 1.4
     def car_height(self, x):
         return np.sqrt(((self.L_carro/2)**2) - (x - self.d_dominio - (self.L_carro/2))**2) + self.h_carro
 
@@ -292,6 +295,24 @@ class Fusca():
 
         return p
 
+    def plot_pressure_heatmap(self):
+        p = self.pressure_calc_in_domain()
+        print(p)
+        # Define meshgrid
+        x = np.arange(0, self.x_dominio, self.delta)
+        y = np.arange(0, self.y_dominio, self.delta)
+        X, Y = np.meshgrid(x, y)
+
+        # Plot contour
+        plt.figure(figsize=(8, 6))
+        plt.imshow(p, cmap='plasma', origin='lower', extent=[0, self.Nx * self.delta, 0, self.Nx * self.delta])
+        plt.colorbar(label='Pressure')
+        
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.title('Pressure Distribution')
+        plt.show()
+
     def calc_lift_force(self):
         p = self.pressure_calc_in_domain
         return np.sum(p)
@@ -299,4 +320,4 @@ class Fusca():
 
 
 fusca = Fusca(use_saved_matrix=True)
-fusca.plot_partial_velocities()
+fusca.plot_pressure_heatmap()

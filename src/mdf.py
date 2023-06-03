@@ -253,12 +253,30 @@ class Fusca():
     def calc_partial_velocities(self):
         x = np.arange(0, self.x_dominio, self.delta)
         y = np.arange(0, self.y_dominio, self.delta)
-        partial_x = np.gradient(self.psi, x)
-        partial_y = -np.gradient(self.psi, y)
-        return partial_x, partial_y
+        u = np.gradient(self.psi, x)
+        v = -np.gradient(self.psi, y)
+        return u, v
 
     def plot_partial_velocities(self):
         pass
+
+    def pressure_calc_in_domain(self):
+        p = np.zeros((self.Nx, self.Ny))
+        u, v = self.calc_partial_velocities()
+        for i in range(self.Nx):
+            for j in range(self.Ny):
+                first_term = self.p_atm + self.rho * \
+                    ((self.gamma_ar - 1)/self.gamma_ar)
+                second_term = ((self.V**2)/2) - \
+                    ((np.sqrt(u[i, j]**2 + v[i, j]**2))**2)/2
+                p[i, j] = first_term * second_term
+
+        return p
+
+    def calc_lift_force(self):
+        p = self.pressure_calc_in_domain
+        return np.sum(p)
+    
 
 
 fusca = Fusca()

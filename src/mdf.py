@@ -364,12 +364,7 @@ class Fusca():
                             T[i, j] = self.T_fora
 
                         elif i == self.Nx - 1:  # Bottom right border
-                            if v[i, j] > 0:
-                                T[i, j] = ((alpha * v[i, j] * T[i, j-1]) + 2 *
-                                           T[i-1, j] + 2 * T[i, j-1])/(4 + alpha * v[i, j])
-                            else:  # v < 0
-                                T[i, j] = ((alpha * v[i, j] * T[i, j+1]) + 2 *
-                                           T[i-1, j] + 2 * T[i, j-1])/(4 - alpha * v[i, j])
+                            T[i, j] = (2*T[i-1, j] + T[i, j+1] + T[i, j-1])/3
                         else:  # Bottom inner border
                             pass
                     elif j == self.Ny - 1:  # Top border
@@ -384,9 +379,11 @@ class Fusca():
                         T[i, j] = self.T_fora
                     elif i == self.Nx - 1:  # Right inner border
                         if v[i, j] > 0:
-                            pass
+                            T[i, j] = ((alpha * v[i, j] * T[i, j-1]) + 2 *
+                                       T[i-1, j] + 2 * T[i, j-1])/(4 + alpha * v[i, j])
                         else:  # v < 0
-                            pass
+                            T[i, j] = ((alpha * v[i, j] * T[i, j+1]) + 2 *
+                                       T[i-1, j] + 2 * T[i, j-1])/(4 - alpha * v[i, j])
                     # Inside car
 
                     # Inside motor

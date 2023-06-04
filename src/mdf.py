@@ -30,6 +30,10 @@ class Fusca():
         self.rho = 1.25
         self.gamma_ar = 1.4
 
+        self.T_fora = 20
+        self.T_motor = 80
+        self.T_dentro = 25
+
     def car_height(self, x):
         return np.sqrt(((self.L_carro/2)**2) - (x - self.d_dominio - (self.L_carro/2))**2) + self.h_carro
 
@@ -325,6 +329,103 @@ class Fusca():
         Fx = np.sum(p * x * self.delta)
         Fy = np.sum(p * y * self.delta)
         return Fx, Fy
+
+    def calc_temperature(self):
+        u, v = self.calc_partial_velocities()
+
+        T = np.zeros((self.Nx, self.Ny))
+        x = self.x
+        y = self.y
+
+        max_iter = 10000
+        tolerance = 1e-4
+        omega = 1.15
+        for _ in range(max_iter):
+            T_old = T.copy()
+            for i in range(self.Nx):
+                for j in range(self.Ny):
+                    T_old[i, j] = T[i, j].copy()
+                    pos_x = x[i]  # Current position at x axis
+                    pos_y = y[j]  # Current position at y axis
+
+                    alpha = ((self.rho * self.cp)/(self.k * 2)) * self.delta
+
+                    if j == 0:  # Bottom border
+                        if i == 0:  # Bottom left border
+                            T[i, j] = self.T_fora
+
+                        elif i == self.Nx - 1:  # Bottom right border
+                            if v[i, j] > 0:
+                                T[i, j] = ((alpha * v[i, j] * T[i, j-1]) + 2 *
+                                           T[i-1, j] + 2 * T[i, j-1])/(4 + alpha * v[i, j])
+                            else:  # v < 0
+                                T[i, j] = ((alpha * v[i, j] * T[i, j+1]) + 2 *
+                                           T[i-1, j] + 2 * T[i, j-1])/(4 - alpha * v[i, j])
+                        else:  # Bottom inner border
+                            laplace_term = (
+                                T[i+1, j] + T[i-1, j]+T[i, j+1] + T[i, j-1])/4
+                            if u[i, j] > 0 and v[i, j] > 0:
+
+                                partial_term = (alpha / 4) * \
+                                    ((u[i, j] * T[i-1, j] + v[i, j] * T[i, j-1]))
+                                divisive_term = - (
+                                    1 + (alpha/4) * (u[i, j] + v[i, j]))
+                            elif u[i, j] < 0 and v[i, j] < 0:
+                                partial_term = (
+                                    alpha / 4) * ((u[i, j] * T[i+1, j] + v[i, j] * T[i, j+1]))
+                                divisive_term = (
+                                    1 + (alpha/4) * (u[i, j] + v[i, j]))
+                            elif u[i, j] < 0 and v[i, j] > 0:
+                                pass
+
+                            T[i, j] = (laplace_term + partial_term)
+
+                    elif j == self.Ny - 1:  # Top border
+                        if i == 0:  # Top left border
+                            T[i, j] = self.T_fora
+
+                        elif i == self.Nx - 1:  # Top right border
+                            pass
+                        else:  # Top inner border
+                            pass
+                    elif i == 0:  # Left inner border
+                        T[i, j] = self.T_fora
+                    elif i == self.Nx - 1:  # Right inner border
+
+                        if v[i, j] > 0:
+                            pass
+                        else:  # v < 0
+                            pass
+                    # Inside car
+
+                    # Inside motor
+
+                    # Borderline motor
+
+                    # Borderline car
+                    else:  # Inner points
+                        if (i > j):
+                            pass
+                        else:
+                            # Internal dots using finite differences
+
+                            if u[i, j] > 0:
+                                pass
+                            else:  # u < 0
+                                pass
+
+                            if v[i, j] > 0:
+                                pass
+                            else:  # v < 0
+                                pass
+
+                    T[i, j] = (1 - omega) * T[i, j] + \
+                        omega * T[i, j]
+
+            if np.nanmax(np.abs((T - T_old)/T)) < tolerance:
+                break
+
+        return T
 
 
 fusca = Fusca(use_saved_matrix=True)

@@ -289,6 +289,15 @@ class Fusca():
         plt.tight_layout()
         plt.show()
 
+        plt.figure(figsize=(6, 6))
+        plt.quiver(X[::3, ::3], Y[::3, ::3],
+                   u[::3, ::3], v[::3, ::3], pivot='mid')
+        plt.xlabel('X')
+        plt.ylabel('Y')
+        plt.title('Velocities Field')
+        plt.grid(True)
+        plt.show()
+
     def pressure_calc_in_domain(self):
         p = np.zeros((self.Nx, self.Ny))
         u, v = self.calc_partial_velocities()
@@ -362,36 +371,18 @@ class Fusca():
                                 T[i, j] = ((alpha * v[i, j] * T[i, j+1]) + 2 *
                                            T[i-1, j] + 2 * T[i, j-1])/(4 - alpha * v[i, j])
                         else:  # Bottom inner border
-                            laplace_term = (
-                                T[i+1, j] + T[i-1, j]+T[i, j+1] + T[i, j-1])/4
-                            if u[i, j] > 0 and v[i, j] > 0:
-
-                                partial_term = (alpha / 4) * \
-                                    ((u[i, j] * T[i-1, j] + v[i, j] * T[i, j-1]))
-                                divisive_term = - (
-                                    1 + (alpha/4) * (u[i, j] + v[i, j]))
-                            elif u[i, j] < 0 and v[i, j] < 0:
-                                partial_term = (
-                                    alpha / 4) * ((u[i, j] * T[i+1, j] + v[i, j] * T[i, j+1]))
-                                divisive_term = (
-                                    1 + (alpha/4) * (u[i, j] + v[i, j]))
-                            elif u[i, j] < 0 and v[i, j] > 0:
-                                pass
-
-                            T[i, j] = (laplace_term + partial_term)
-
+                            pass
                     elif j == self.Ny - 1:  # Top border
                         if i == 0:  # Top left border
                             T[i, j] = self.T_fora
-
                         elif i == self.Nx - 1:  # Top right border
-                            pass
+                            T[i, j] = (T[i+1, j] + T[i-1, j] +
+                                       T[i, j+1] + T[i, j-1])/4
                         else:  # Top inner border
                             pass
                     elif i == 0:  # Left inner border
                         T[i, j] = self.T_fora
                     elif i == self.Nx - 1:  # Right inner border
-
                         if v[i, j] > 0:
                             pass
                         else:  # v < 0
@@ -404,20 +395,32 @@ class Fusca():
 
                     # Borderline car
                     else:  # Inner points
-                        if (i > j):
-                            pass
-                        else:
-                            # Internal dots using finite differences
+                        laplace_term = (
+                            T[i+1, j] + T[i-1, j]+T[i, j+1] + T[i, j-1])/4
+                        if u[i, j] > 0 and v[i, j] > 0:
 
-                            if u[i, j] > 0:
-                                pass
-                            else:  # u < 0
-                                pass
+                            partial_term = (alpha / 4) * \
+                                ((u[i, j] * T[i-1, j] + v[i, j] * T[i, j-1]))
+                            divisive_term = - (
+                                1 + (alpha/4) * (u[i, j] + v[i, j]))
+                        elif u[i, j] < 0 and v[i, j] < 0:
+                            partial_term = (
+                                alpha / 4) * ((u[i, j] * T[i+1, j] + v[i, j] * T[i, j+1]))
+                            divisive_term = (
+                                1 + (alpha/4) * (u[i, j] + v[i, j]))
+                        elif u[i, j] < 0 and v[i, j] > 0:
+                            partial_term = (
+                                alpha / 4) * ((u[i, j] * T[i+1, j] - v[i, j] * T[i, j-1]))
+                            divisive_term = (
+                                1 + (alpha/4) * (u[i, j] - v[i, j]))
+                        else:  # u > 0 and v < 0
+                            partial_term = (
+                                alpha / 4) * ((- u[i, j] * T[i-1, j] + v[i, j] * T[i, j+11]))
+                            divisive_term = (
+                                1 + (alpha/4) * (-u[i, j] + v[i, j]))
 
-                            if v[i, j] > 0:
-                                pass
-                            else:  # v < 0
-                                pass
+                        T[i, j] = (laplace_term + partial_term) / \
+                            divisive_term
 
                     T[i, j] = (1 - omega) * T[i, j] + \
                         omega * T[i, j]
@@ -429,4 +432,4 @@ class Fusca():
 
 
 fusca = Fusca(use_saved_matrix=True)
-print(fusca.calc_lift_force())
+print(fusca.plot_partial_velocities())

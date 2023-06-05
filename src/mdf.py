@@ -3,7 +3,7 @@ import numpy as np
 
 
 class Fusca():
-    def __init__(self, use_saved_matrix) -> None:
+    def __init__(self, use_saved_phi=True, use_saved_T=True) -> None:
         self.V = 100/3.6  # m/s
         self.h_carro = 0.15
         self.L_carro = 3
@@ -18,27 +18,49 @@ class Fusca():
 
         self.Nx = len(self.x)
         self.Ny = len(self.y)
-        if use_saved_matrix:
+        if use_saved_phi:
             with open('src/utils/psi_matrix.npy', 'rb') as f:
                 self.psi = np.load(f)
         else:
             with open('src/utils/psi_matrix.npy', 'wb') as f:
-                self.psi = np.transpose(self.setup_matrix())
+                self.psi = np.transpose(self.calculate_phi())
                 np.save(f, self.psi)
 
         self.p_atm = 101.325
         self.rho = 1.25
         self.gamma_ar = 1.4
-
+        self.cp = 1002
+        self.k = 0.026
         self.T_fora = 20
         self.T_motor = 80
         self.T_dentro = 25
+
+        if use_saved_T:
+            with open('src/utils/T_matrix.npy', 'rb') as f:
+                self.Temperature = np.load(f)
+        else:
+            with open('src/utils/T_matrix.npy', 'wb') as f:
+                self.Temperature = np.transpose(self.calc_temperature())
+                np.save(f, self.Temperature)
 
     def car_height(self, x):
         return np.sqrt(((self.L_carro/2)**2) - (x - self.d_dominio - (self.L_carro/2))**2) + self.h_carro
 
     def inside_car(self, x, y):
         return (self.distance_from_circle(x, y) < self.L_carro/2) and (y > self.h_carro)
+
+    def inside_car_motor(self, x, y):
+        current_position = np.array([x, y])
+        center = np.array([self.h_carro, self.L_carro/2 + self.d_dominio])
+        end_of_car = np.array([self.h_carro, self.L_carro + self.d_dominio])
+
+        ba = current_position - center
+        bc = end_of_car - center
+
+        cosine_angle = np.dot(ba, bc) / \
+            (np.linalg.norm(ba) * np.linalg.norm(bc))
+        angle = np.degrees(np.arccos(cosine_angle))
+        return angle < 60
 
     def circle_bottom_border(self, y_pos, x_pos, delta):
 
@@ -113,7 +135,7 @@ class Fusca():
     def distance_from_circle(self, x_pos, y_pos):
         return np.sqrt((x_pos - self.d_dominio - self.L_carro/2) ** 2 + (y_pos - self.h_carro)**2)
 
-    def setup_matrix(self):
+    def calculate_phi(self):
         # Define zero matrix with 2D linearization to 1D space
         psi = np.zeros((self.Nx, self.Ny))
 
@@ -357,6 +379,7 @@ class Fusca():
                     pos_x = x[i]  # Current position at x axis
                     pos_y = y[j]  # Current position at y axis
 
+                    
                     alpha = ((self.rho * self.cp)/(self.k * 2)) * self.delta
 
                     if j == 0:  # Bottom border
@@ -366,15 +389,25 @@ class Fusca():
                         elif i == self.Nx - 1:  # Bottom right border
                             T[i, j] = (2*T[i-1, j] + T[i, j+1] + T[i, j-1])/3
                         else:  # Bottom inner border
-                            pass
+                            if u[i, j] > 0:
+                                T[i, j] = ((2*T[i, j-1] + T[i+1, j] + T[i-1, j])/4 + (alpha/4)
+                                           * u[i, j] * T[i-1, j]) / (1 + (alpha/4) * u[i, j])
+                            else:  # u < 0
+                                T[i, j] = ((2*T[i, j-1] + T[i+1, j] + T[i-1, j])/4 + (alpha/4)
+                                           * u[i, j] * T[i+1, j]) / (1 - (alpha/4) * u[i, j])
                     elif j == self.Ny - 1:  # Top border
                         if i == 0:  # Top left border
                             T[i, j] = self.T_fora
                         elif i == self.Nx - 1:  # Top right border
-                            T[i, j] = (T[i+1, j] + T[i-1, j] +
-                                       T[i, j+1] + T[i, j-1])/4
+                            T[i, j] = (T[i-1, j] +
+                                       T[i, j-1])/2
                         else:  # Top inner border
-                            pass
+                            if u[i, j] > 0:
+                                T[i, j] = ((2*T[i, j-1] + T[i+1, j] + T[i-1, j])/4 + (alpha/4)
+                                           * u[i, j] * T[i-1, j]) / (1 + (alpha/4) * u[i, j])
+                            else:  # u < 0
+                                T[i, j] = ((2*T[i, j-1] + T[i+1, j] + T[i-1, j])/4 + (alpha/4)
+                                           * u[i, j] * T[i+1, j]) / (1 - (alpha/4) * u[i, j])
                     elif i == 0:  # Left inner border
                         T[i, j] = self.T_fora
                     elif i == self.Nx - 1:  # Right inner border
@@ -384,13 +417,23 @@ class Fusca():
                         else:  # v < 0
                             T[i, j] = ((alpha * v[i, j] * T[i, j+1]) + 2 *
                                        T[i-1, j] + 2 * T[i, j-1])/(4 - alpha * v[i, j])
-                    # Inside car
 
-                    # Inside motor
+                    elif self.inside_car(pos_x, pos_y):
+                        T[i, j] = self.T_motor if self.inside_car_motor(
+                            pos_x, pos_y) else self.T_dentro
 
-                    # Borderline motor
+                    # Borderline car bottom
+                    # elif self.circle_bottom_border(pos_y, pos_x, self.delta):
+                    #     if self.inside_car_motor():
+                    #         a = ((self.h_carro - pos_y) / self.delta)
+                    #         T[i, j] = ((T[i+1, j]+T[i-1, j] +
+                    #                     (2*T[i, j - 1]) / (a+1))/(2/a + 2))
 
-                    # Borderline car
+                    #         pass
+                    #     else:
+                    #         pass
+                    #         # Borderline with normal car temperature
+                    #         # Borderline car
                     else:  # Inner points
                         laplace_term = (
                             T[i+1, j] + T[i-1, j]+T[i, j+1] + T[i, j-1])/4
@@ -412,7 +455,7 @@ class Fusca():
                                 1 + (alpha/4) * (u[i, j] - v[i, j]))
                         else:  # u > 0 and v < 0
                             partial_term = (
-                                alpha / 4) * ((- u[i, j] * T[i-1, j] + v[i, j] * T[i, j+11]))
+                                alpha / 4) * ((- u[i, j] * T[i-1, j] + v[i, j] * T[i, j+1]))
                             divisive_term = (
                                 1 + (alpha/4) * (-u[i, j] + v[i, j]))
 
@@ -421,12 +464,27 @@ class Fusca():
 
                     T[i, j] = (1 - omega) * T[i, j] + \
                         omega * T[i, j]
-
+            print(np.nanmax(np.abs((T - T_old)/T)))
             if np.nanmax(np.abs((T - T_old)/T)) < tolerance:
                 break
 
         return T
 
+    def plot_temperature(self):
 
-fusca = Fusca(use_saved_matrix=True)
+        # Define meshgrid
+        x = np.arange(0, self.x_dominio, self.delta)
+        y = np.arange(0, self.y_dominio, self.delta)
+        X, Y = np.meshgrid(x, y)
+
+        # Plot contour
+        plt.contour(X, Y,  self.T, levels=20)
+        plt.colorbar(label='Phi')
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.title('Temperature Distribution')
+        plt.show()
+
+
+fusca = Fusca(use_saved_phi=True, use_saved_T=False)
 print(fusca.plot_partial_velocities())

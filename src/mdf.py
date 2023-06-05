@@ -368,7 +368,7 @@ class Fusca():
         x = self.x
         y = self.y
 
-        max_iter = 10000
+        max_iter = 1
         tolerance = 1e-4
         omega = 1.15
         for _ in range(max_iter):
@@ -478,8 +478,9 @@ class Fusca():
         X, Y = np.meshgrid(x, y)
 
         # Plot contour
-        plt.contour(X, Y,  self.T, levels=20)
-        plt.colorbar(label='Phi')
+        print(self.Temperature)
+        plt.imshow(self.Temperature, cmap='hot', interpolation='nearest')
+        plt.colorbar(label='Temperature')
         plt.xlabel('x')
         plt.ylabel('y')
         plt.title('Temperature Distribution')
@@ -487,4 +488,4 @@ class Fusca():
 
 
 fusca = Fusca(use_saved_phi=True, use_saved_T=False)
-print(fusca.plot_partial_velocities())
+print(fusca.plot_temperature())

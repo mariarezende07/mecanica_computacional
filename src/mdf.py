@@ -50,7 +50,7 @@ class Fusca():
         return (self.distance_from_circle(x, y) < self.L_carro/2) and (y > self.h_carro)
 
     def inside_car_motor(self, x, y):
-        current_position = np.array([x, y])
+        current_position = np.array([y, x])
         center = np.array([self.h_carro, self.L_carro/2 + self.d_dominio])
         end_of_car = np.array([self.h_carro, self.L_carro + self.d_dominio])
 
@@ -60,6 +60,7 @@ class Fusca():
         cosine_angle = np.dot(ba, bc) / \
             (np.linalg.norm(ba) * np.linalg.norm(bc))
         angle = np.degrees(np.arccos(cosine_angle))
+        
         return angle < 60
 
     def circle_bottom_border(self, y_pos, x_pos, delta):
@@ -265,6 +266,23 @@ class Fusca():
 
         return psi
 
+    def pressure_calc_in_car(self):
+        p = np.zeros((self.Nx, self.Ny))
+        u, v = self.calc_partial_velocities()
+        delta = self.delta
+        for i in range(self.Nx):
+            for j in range(self.Ny):
+                pos_x = self.x[i]  # Current position at x axis
+                pos_y = self.y[j]  # Current position at y axis
+                if ((self.distance_from_circle(pos_x, pos_y) - self.L_carro/2 < delta) and (self.distance_from_circle(pos_x, pos_y) > self.L_carro/2) and (pos_y > self.h_carro)) or self.circle_bottom_border(x_pos=pos_x, y_pos=pos_y, delta=delta):
+                    first_term = self.p_atm + self.rho * \
+                        ((self.gamma_ar - 1)/self.gamma_ar)
+                    second_term = ((self.V**2)/2) - \
+                        ((np.sqrt(u[i, j]**2 + v[i, j]**2))**2)/2
+                    p[i, j] = first_term * second_term
+
+        return np.transpose(p)
+
     def plot_psi(self):
 
         # Define meshgrid
@@ -281,7 +299,7 @@ class Fusca():
         plt.show()
 
     def calc_partial_velocities(self):
-        u, v = np.gradient(self.psi, self.delta)
+        u, v = np.gradient(np.transpose(self.psi), self.delta)
         return u, -v
 
     def plot_partial_velocities(self):
@@ -323,6 +341,7 @@ class Fusca():
     def pressure_calc_in_domain(self):
         p = np.zeros((self.Nx, self.Ny))
         u, v = self.calc_partial_velocities()
+
         for i in range(self.Nx):
             for j in range(self.Ny):
                 first_term = self.p_atm + self.rho * \
@@ -352,13 +371,33 @@ class Fusca():
         plt.title('Pressure Distribution')
         plt.show()
 
+    def plot_pressure_heatmap_in_car(self):
+        p = self.pressure_calc_in_car()
+        min_index = np.unravel_index(np.argmin(p), p.shape)
+        x = np.arange(0, self.x_dominio, self.delta)
+        y = np.arange(0, self.y_dominio, self.delta)
+        # Plot contour
+        plt.figure(figsize=(8, 6))
+        plt.imshow(p, cmap='Purples', origin='lower', extent=[
+                   0, self.Nx * self.delta, 0, self.Nx * self.delta])
+        plt.colorbar(label='Pressure')
+
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.title('Pressure Distribution')
+        print(min_index)
+        plt.scatter(x[min_index[1]], y[min_index[0]], s=12**2)
+
+        plt.show()
+
     def calc_lift_force(self):
-        p = self.pressure_calc_in_domain()
+        p = self.pressure_calc_in_car()
         x = np.arange(0, self.x_dominio, self.delta)
         y = np.arange(0, self.y_dominio, self.delta)
 
         Fx = np.sum(p * x * self.delta)
         Fy = np.sum(p * y * self.delta)
+
         return Fx, Fy
 
     def calc_temperature(self):
@@ -379,7 +418,6 @@ class Fusca():
                     pos_x = x[i]  # Current position at x axis
                     pos_y = y[j]  # Current position at y axis
 
-                    
                     alpha = ((self.rho * self.cp)/(self.k * 2)) * self.delta
 
                     if j == 0:  # Bottom border
@@ -419,21 +457,10 @@ class Fusca():
                                        T[i-1, j] + 2 * T[i, j-1])/(4 - alpha * v[i, j])
 
                     elif self.inside_car(pos_x, pos_y):
+                        
                         T[i, j] = self.T_motor if self.inside_car_motor(
                             pos_x, pos_y) else self.T_dentro
 
-                    # Borderline car bottom
-                    # elif self.circle_bottom_border(pos_y, pos_x, self.delta):
-                    #     if self.inside_car_motor():
-                    #         a = ((self.h_carro - pos_y) / self.delta)
-                    #         T[i, j] = ((T[i+1, j]+T[i-1, j] +
-                    #                     (2*T[i, j - 1]) / (a+1))/(2/a + 2))
-
-                    #         pass
-                    #     else:
-                    #         pass
-                    #         # Borderline with normal car temperature
-                    #         # Borderline car
                     else:  # Inner points
                         laplace_term = (
                             T[i+1, j] + T[i-1, j]+T[i, j+1] + T[i, j-1])/4
@@ -479,7 +506,8 @@ class Fusca():
 
         # Plot contour
         print(self.Temperature)
-        plt.imshow(self.Temperature, cmap='hot', interpolation='nearest')
+        plt.imshow(self.Temperature, cmap='hot_r', origin='lower', extent=[
+                   0, self.Nx * self.delta, 0, self.Ny * self.delta])
         plt.colorbar(label='Temperature')
         plt.xlabel('x')
         plt.ylabel('y')
@@ -488,4 +516,4 @@ class Fusca():
 
 
 fusca = Fusca(use_saved_phi=True, use_saved_T=False)
-print(fusca.plot_temperature())
+print(fusca.plot_pressure_heatmap_in_car())

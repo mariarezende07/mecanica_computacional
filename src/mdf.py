@@ -402,13 +402,12 @@ class Fusca():
 
     def calc_temperature(self):
         u, v = self.calc_partial_velocities()
-
         T = np.zeros((self.Nx, self.Ny))
         x = self.x
         y = self.y
 
-        max_iter = 1
-        tolerance = 1e-4
+        max_iter = 1000
+        tolerance = 1e-2
         omega = 1.15
         for _ in range(max_iter):
             T_old = T.copy()
@@ -419,8 +418,10 @@ class Fusca():
                     pos_y = y[j]  # Current position at y axis
 
                     alpha = ((self.rho * self.cp)/(self.k * 2)) * self.delta
-
-                    if j == 0:  # Bottom border
+                    
+                    if i == 0:  # Left inner border
+                        T[i, j] = self.T_fora
+                    elif j == 0:  # Bottom border
                         if i == 0:  # Bottom left border
                             T[i, j] = self.T_fora
 
@@ -446,8 +447,7 @@ class Fusca():
                             else:  # u < 0
                                 T[i, j] = ((2*T[i, j-1] + T[i+1, j] + T[i-1, j])/4 + (alpha/4)
                                            * u[i, j] * T[i+1, j]) / (1 - (alpha/4) * u[i, j])
-                    elif i == 0:  # Left inner border
-                        T[i, j] = self.T_fora
+                    
                     elif i == self.Nx - 1:  # Right inner border
                         if v[i, j] > 0:
                             T[i, j] = ((alpha * v[i, j] * T[i, j-1]) + 2 *
@@ -516,4 +516,4 @@ class Fusca():
 
 
 fusca = Fusca(use_saved_phi=True, use_saved_T=False)
-print(fusca.plot_pressure_heatmap_in_car())
+print(fusca.plot_temperature())

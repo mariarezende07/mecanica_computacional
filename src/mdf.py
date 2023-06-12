@@ -1,11 +1,18 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+
+import sys
 
 
 class Fusca():
-    def __init__(self, use_saved_phi=True, use_saved_T=True) -> None:
-        self.V = 100/3.6  # m/s
-        self.h_carro = 0.15
+    def __init__(self,
+                 V=100/3.6,
+                 h=0.15,
+                 use_saved_phi=True,
+                 use_saved_T=True) -> None:
+        self.V = V  # m/s
+        self.h_carro = h
         self.L_carro = 3
         self.d_dominio = 1.5
 
@@ -60,7 +67,7 @@ class Fusca():
         cosine_angle = np.dot(ba, bc) / \
             (np.linalg.norm(ba) * np.linalg.norm(bc))
         angle = np.degrees(np.arccos(cosine_angle))
-        
+
         return angle < 60
 
     def circle_bottom_border(self, y_pos, x_pos, delta):
@@ -146,6 +153,7 @@ class Fusca():
         y = self.y
         max_iter = 10000
         tolerance = 1e-4
+
         omega = 1.85
         for _ in range(max_iter):
             psi_old = psi.copy()
@@ -261,6 +269,7 @@ class Fusca():
                     psi[i, j] = (1 - omega) * psi_old[i, j] + \
                         omega * psi[i, j]
 
+            print(np.nanmax(np.abs((psi - psi_old)/psi)))
             if np.nanmax(np.abs((psi - psi_old)/psi)) < tolerance:
                 break
 
@@ -330,8 +339,8 @@ class Fusca():
         plt.show()
 
         plt.figure(figsize=(6, 6))
-        plt.quiver(X[::3, ::3], Y[::3, ::3],
-                   u[::3, ::3], v[::3, ::3], pivot='mid')
+        plt.quiver(X[::5, ::5], Y[::5, ::5],
+                   u[::5, ::5], v[::5, ::5], pivot='mid')
         plt.xlabel('X')
         plt.ylabel('Y')
         plt.title('Velocities Field')
@@ -350,7 +359,7 @@ class Fusca():
                     ((np.sqrt(u[i, j]**2 + v[i, j]**2))**2)/2
                 p[i, j] = first_term * second_term
 
-        return p
+        return np.transpose(p)
 
     def plot_pressure_heatmap(self):
         p = self.pressure_calc_in_domain()
@@ -378,27 +387,30 @@ class Fusca():
         y = np.arange(0, self.y_dominio, self.delta)
         # Plot contour
         plt.figure(figsize=(8, 6))
-        plt.imshow(p, cmap='Purples', origin='lower', extent=[
+        plt.imshow(p, cmap='PiYG', origin='lower', extent=[
                    0, self.Nx * self.delta, 0, self.Nx * self.delta])
         plt.colorbar(label='Pressure')
 
         plt.xlabel('x')
         plt.ylabel('y')
         plt.title('Pressure Distribution')
-        print(min_index)
+        plt.annotate(f'Minimum pressure at P = {np.argmin(p)}', xy=(
+            x[min_index[1]], y[min_index[0]]), xytext=(x[min_index[1]] + 0.05, y[min_index[0]] + 0.05))
         plt.scatter(x[min_index[1]], y[min_index[0]], s=12**2)
 
         plt.show()
 
     def calc_lift_force(self):
-        p = self.pressure_calc_in_car()
+        p = np.transpose(self.pressure_calc_in_car())
         x = np.arange(0, self.x_dominio, self.delta)
-        y = np.arange(0, self.y_dominio, self.delta)
 
-        Fx = np.sum(p * x * self.delta)
-        Fy = np.sum(p * y * self.delta)
+        under = np.where(x <= self.h_carro + self.delta)
+        above = np.where(x > self.h_carro + self.delta)
 
-        return Fx, Fy
+        force_under = np.sum(p[:, under] * self.delta**2)
+        force_above = np.sum(p[:, above] * self.delta**2)
+
+        return abs(force_above - force_under)
 
     def calc_temperature(self):
         u, v = self.calc_partial_velocities()
@@ -418,7 +430,7 @@ class Fusca():
                     pos_y = y[j]  # Current position at y axis
 
                     alpha = ((self.rho * self.cp)/(self.k * 2)) * self.delta
-                    
+
                     if i == 0:  # Left inner border
                         T[i, j] = self.T_fora
                     elif j == 0:  # Bottom border
@@ -447,7 +459,7 @@ class Fusca():
                             else:  # u < 0
                                 T[i, j] = ((2*T[i, j-1] + T[i+1, j] + T[i-1, j])/4 + (alpha/4)
                                            * u[i, j] * T[i+1, j]) / (1 - (alpha/4) * u[i, j])
-                    
+
                     elif i == self.Nx - 1:  # Right inner border
                         if v[i, j] > 0:
                             T[i, j] = ((alpha * v[i, j] * T[i, j-1]) + 2 *
@@ -457,7 +469,7 @@ class Fusca():
                                        T[i-1, j] + 2 * T[i, j-1])/(4 - alpha * v[i, j])
 
                     elif self.inside_car(pos_x, pos_y):
-                        
+
                         T[i, j] = self.T_motor if self.inside_car_motor(
                             pos_x, pos_y) else self.T_dentro
 
@@ -515,5 +527,43 @@ class Fusca():
         plt.show()
 
 
-fusca = Fusca(use_saved_phi=True, use_saved_T=False)
-print(fusca.plot_temperature())
+def parameter_changing():
+    h = [0.1, 0.05, 0.20, 0.025, 0.15]
+
+    F_h = [3996.305619938319, 6529.07021349956, 1717.1915561709775, 3197.042558539767, 1877.7191816268987]
+
+    
+    V = [75, 140, 100]
+
+    F_v = [1079.4296440562757, 3914.1261657249634,1877.7191816268987]
+
+    df = pd.DataFrame({'h': h, 'F_h': F_h})
+
+    # Sort the DataFrame by 'h' column in ascending order
+    sorted_df = df.sort_values('h', ascending=False)
+
+    # Plot the sorted data
+    plt.plot(sorted_df['h'], sorted_df['F_h'], marker='o')
+    plt.xlabel('h (m)')
+    plt.ylabel('F (N)')
+    plt.title('F vs. h')
+    plt.grid(True)
+    plt.show()
+
+
+    df2 = pd.DataFrame({'V': V, 'F_v': F_v})
+
+    # Sort the DataFrame by 'h' column in ascending order
+    sorted_df = df2.sort_values('V', ascending=False)
+
+    # Plot the sorted data
+    plt.plot(sorted_df['V'], sorted_df['F_v'], marker='o')
+    plt.xlabel('V (km/h)')
+    plt.ylabel('F (N)')
+    plt.title('F vs. V')
+    plt.grid(True)
+    plt.show()
+
+    
+
+parameter_changing()

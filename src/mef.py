@@ -1,54 +1,54 @@
 import numpy as np
-# from scipy.linalg import eigh
-# import matplotlib.pyplot as plt
+from scipy.linalg import eigh
+import matplotlib.pyplot as plt
 
-# # Parâmetros da estrutura
-# L = 1.0  # Comprimento total da estrutura
-# dx_values = [0.01, 0.02]  # Valores de discretização para os elementos
+# Parâmetros da estrutura
+L = 1.0  # Comprimento total da estrutura
+dx_values = [0.01, 0.02]  # Valores de discretização para os elementos
 
-# # Função para construir a matriz de rigidez global
+# Função para construir a matriz de rigidez global
 
 
-# # Calcular frequências naturais e modos de vibração
-# def calculate_modes_frequencies(K):
-#     # Calcular autovalores e autovetores
-#     eigenvalues, eigenvectors = eigh(K)
+# Calcular frequências naturais e modos de vibração
+def calculate_modes_frequencies(K):
+    # Calcular autovalores e autovetores
+    eigenvalues, eigenvectors = eigh(K)
 
-#     # Ordenar em ordem crescente
-#     idx = np.argsort(eigenvalues)
-#     eigenvalues = eigenvalues[idx]
-#     eigenvectors = eigenvectors[:, idx]
+    # Ordenar em ordem crescente
+    idx = np.argsort(eigenvalues)
+    eigenvalues = eigenvalues[idx]
+    eigenvectors = eigenvectors[:, idx]
 
-#     return eigenvalues, eigenvectors
+    return eigenvalues, eigenvectors
 
-# # Plotar modos de vibração
-# def plot_modes(eigenvectors, dx):
-#     num_modes = eigenvectors.shape[1]
+# Plotar modos de vibração
+def plot_modes(eigenvectors, dx):
+    num_modes = eigenvectors.shape[1]
 
-#     for i in range(num_modes):
-#         plt.plot(eigenvectors[:, i], label='Modo {}'.format(i + 1))
+    for i in range(num_modes):
+        plt.plot(eigenvectors[:, i], label='Modo {}'.format(i + 1))
 
-#     plt.xlabel('Posição')
-#     plt.ylabel('Deslocamento')
-#     plt.title('Modos de Vibração')
-#     plt.legend()
-#     plt.grid(True)
-#     plt.show()
+    plt.xlabel('Posição')
+    plt.ylabel('Deslocamento')
+    plt.title('Modos de Vibração')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
-# # Loop para diferentes valores de discretização
-# for dx in dx_values:
-#     K = build_global_stiffness_matrix(L, dx)
-#     eigenvalues, eigenvectors = calculate_modes_frequencies(K)
+# Loop para diferentes valores de discretização
+for dx in dx_values:
+    K = build_global_stiffness_matrix(L, dx)
+    eigenvalues, eigenvectors = calculate_modes_frequencies(K)
 
-#     # Converter autovalores para frequências em Hertz
-#     frequencies = np.sqrt(eigenvalues) / (2 * np.pi)
+    # Converter autovalores para frequências em Hertz
+    frequencies = np.sqrt(eigenvalues) / (2 * np.pi)
 
-#     print('Discretização (dx = {}):'.format(dx))
-#     for i in range(6):
-#         print('Frequência {}: {:.2f} Hz'.format(i + 1, frequencies[i]))
+    print('Discretização (dx = {}):'.format(dx))
+    for i in range(6):
+        print('Frequência {}: {:.2f} Hz'.format(i + 1, frequencies[i]))
 
-#     if dx == min(dx_values):
-#         plot_modes(eigenvectors, dx)
+    if dx == min(dx_values):
+        plot_modes(eigenvectors, dx)
 
 
 

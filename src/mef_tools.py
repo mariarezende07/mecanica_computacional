@@ -3,22 +3,62 @@ import pandas as pd
 
 
 class Trelica():
-    def __init__(self, A, E, L, theta, global_element_nodes):
-        self.A = A
-        self.E = E
+    def __init__(self, L, theta, start_node, end_node, is_spring):
+        self.A = 0.00015
+        self.E = 210   # Parâmetro do ACO SAE 1045
         self.L = L
         self.theta = theta
-        self.element_nodes = global_element_nodes
+        self.start_node = start_node
+        self.end_node = end_node
+        self.K = 200E+3
+        self.mass = 0.5
+        self.is_spring = is_spring
+        self.rho = 7860
 
-    def generate_trelica_matrix(self):
-        stiff_matrix = self.rigidez_trelica_matrix(self.E, self.A, self.L)
+    def get_nodes(self, start_node, end_node):
+        x_start, y_start = start_node
+        x_end, y_end = end_node
+
+        node_list = np.array([[x_start, y_start], [x_end, y_end]])
+
+        return node_list
+
+    def generate_stiffness_matrix(self):
+
+        element_nodes = self.get_nodes(self.start_node, self.end_node)
+        stiff_matrix = self.rigidez_trelica_matrix(
+            self.E, self.A, self.L, self.K)
         rotation_matrix = self.trelica_rotation_matrix(self.theta)
 
         stiffness_matrix = np.matmul(np.matmul(np.transpose(
             rotation_matrix), stiff_matrix), rotation_matrix)
         df_matrix = self.generate_dataframe_from_matrix(
-            stiffness_matrix, self.element_nodes)
+            stiffness_matrix, element_nodes)
 
+        return df_matrix
+
+    def generate_mass_matrix(self):
+        rho = self.rho
+        A = self.A
+        L = self.L
+
+        M = np.zeros(shape=(4, 4))
+
+        M[0, :] = [2, 0, 1, 0]
+        M[2, :] = [1, 0, 2, 0]
+
+        if self.is_spring:
+            M *= self.mass/6
+        else:
+            M *= (rho*A*L)/6
+        rotation_matrix = self.trelica_rotation_matrix(self.theta)
+
+        rotated_M = np.matmul(np.matmul(np.transpose(
+            rotation_matrix), M), rotation_matrix)
+
+        element_nodes = self.get_nodes(self.start_node, self.end_node)
+        df_matrix = self.generate_dataframe_from_matrix(
+            rotated_M, element_nodes)
         return df_matrix
 
     def rigidez_trelica_matrix(self, E, A, L):
@@ -27,7 +67,10 @@ class Trelica():
         K[0, :] = [1, 0, -1, 0]
         K[2, :] = [1, 0, 1, 0]
 
-        K *= (E * A)/L
+        if self.is_spring:
+            K *= self.K
+        else:
+            K *= (E * A)/L
 
         return K
 
@@ -95,6 +138,24 @@ class Portico():
         # Usa todas as matrizes locais e gera uma global para o elemento de portico
         global_matrix = self.generate_global_matrix(local_matrixes)
         return global_matrix
+
+    def generate_mass_matrix(self, rho, A, L):
+        M = np.zeros(shape=(6, 6))
+        M[0, :] = (rho*A)/L*[1/3, 0, 0, 1/6, 0, 0]
+        M[1, :] = (rho*A)/L*[0, 13/35, 11*L/210, 0, 9/70, -13/420*L]
+        M[2, :] = (rho*A)/L*[0, 11*L/210, 1*L **
+                             2/105, 0, 13/420*L, -1*L/140]
+        M[3, :] = (rho*A)/L*[0, 9/70, 13/420*L, 0, 13/35, -11*L/210]
+        M[4, :] = (rho*A)/L*[1/3, 0, 0, 1/6, 0, 0]
+        M[5, :] = (rho*A)/L*[0, -13/420*L, -1*L /
+                             140, 0, -11*L/210, 1*L**2/105]
+
+        rotation_matrix = self.rotate_portico_matrix(self.theta)
+
+        rotated_M = np.matmul(np.matmul(np.transpose(
+            rotation_matrix), M), rotation_matrix)
+
+        return rotated_M
 
     def generate_global_matrix(self, matrixes_list):
         global_matrix = pd.concat(matrixes_list).groupby(level=0).sum()
@@ -177,8 +238,7 @@ class Portico():
             return (3.26388E-09, 0.00009024)
         elif element_name == "A3":
             return (9.11458E-09, 0.000175)
-        elif element_name == "A4":
-            return (3.125E-10, 0.00015)
+
         else:
             raise Exception("Undefined element")
 
@@ -188,8 +248,8 @@ class Portico():
 
 # Definicao das variaveis globais
 delta = 1E-02
-alpha = 30
-theta = 70
+alpha = np.radians(30)
+theta = np.radians(70)
 
 h = 400E-03
 l = 700E-03
@@ -211,7 +271,7 @@ portico_a2_horizontal_cima = Portico(delta=delta, start_node=[
     e, h], end_node=[e+l, h], theta=0, element_name="A2")
 
 portico_a2_vertical_esquerda = Portico(delta=delta, start_node=[
-e, 0], end_node=[e, h], theta=90, element_name="A2")
+    e, 0], end_node=[e, h], theta=90, element_name="A2")
 
 portico_a2_vertical_direita = Portico(delta=delta, start_node=[
                                       e+l, 0], end_node=[e+l, h], theta=90, element_name="A2")
@@ -252,16 +312,34 @@ portico_a1_a_h = Portico(delta=delta, start_node=[
     e + a, 0], end_node=[e+a, h], theta=90, element_name="A1")
 
 
-# TRELICA ESQUERDA
+# TRELICA ESQUERDA A4
+
+trelica_esquerda_1 = Trelica(L=g, theta=(np.degrees(np.arctan(-e/(i*np.cos(theta))))),
+                             start_node=[e, h+e], end_node=[0, h + e + i*np.cos(theta)], is_spring=False)
+
+trelica_esquerda_2 = Trelica(L=g, theta=(0), start_node=[
+                             e, h + e + i*np.cos(theta)], end_node=[0, c+e - i * np.sin(theta)], is_spring=False)
+
+trelica_esquerda_3 = Trelica(L=g, theta=(np.degrees(np.arctan(-e/(c+e - i * np.sin(theta) - h - e)))),
+                             start_node=[e, h+e], end_node=[0, c+e - i * np.sin(theta)], is_spring=False)
+
+trelica_esquerda_mola = Trelica(
+    L=g, theta=(np.degrees(theta)), start_node=[c+e - i * np.sin(theta), h+e+i*np.cos(theta)], end_node=[c+e, h+e], is_spring=True)
 
 
 # TRELICA DIREITA
+trelica_direita_1 = Trelica(L=g, theta=(np.degrees(np.arctan(-e/(i*np.cos(theta))))),
+                            start_node=[e, h+e], end_node=[0, h + e + i*np.cos(theta)], is_spring=False)
 
+trelica_direita_2 = Trelica(L=g, theta=(0), start_node=[
+                            e, h + e + i*np.cos(theta)], end_node=[0, c+e - i * np.sin(theta)], is_spring=False)
 
-# TRELICA MOLA ESQUERDA
+trelica_direita_3 = Trelica(L=g, theta=(np.degrees(np.arctan(-e/(i*np.cos(theta))))),
+                            start_node=[e, h+e], end_node=[0, c+e - i * np.sin(theta)], is_spring=False)
 
+trelica_direita_mola = Trelica(L=g, theta=(np.degrees(np.arctan(-e/(c+e - i * np.sin(theta) - h - e)))),
+                               start_node=[e, h+e], end_node=[0, c+e - i * np.sin(theta)], is_spring=False)
 
-# TRELICA MOLA DIREITA
 
 def generate_global_matrix(matrixes_list):
     global_matrix = pd.concat(matrixes_list).groupby(level=0).sum()

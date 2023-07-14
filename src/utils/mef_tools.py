@@ -3,13 +3,24 @@ import pandas as pd
 
 
 class Trelica():
-    def __init__(self, A, E, L):
+    def __init__(self, A, E, L, theta, global_element_nodes):
         self.A = A
         self.E = E
         self.L = L
+        self.theta = theta
+        self.element_nodes = global_element_nodes
+
+    def generate_trelica_matrix(self):
+        stiff_matrix = self.rigidez_trelica_matrix(self.E, self.A, self.L)
+        rotation_matrix = self.trelica_rotation_matrix(self.theta)
         
-    def 
+        stiffness_matrix = np.matmul(np.matmul(np.transpose(
+                rotation_matrix), stiff_matrix), rotation_matrix)
+        df_matrix = self.generate_dataframe_from_matrix(
+                stiffness_matrix, self.element_nodes)
         
+        return df_matrix
+    
     def rigidez_trelica_matrix(self, E, A, L):
         K = np.zeros(shape=(6, 6))
 
@@ -31,13 +42,29 @@ class Trelica():
         T[5, 5] = 1
 
         return T
+    
+    def generate_dataframe_from_matrix(self, local_matrix, nodes):
+
+        column_names = []
+        index_names = []
+        for node in nodes:
+            u_dof = f"{node}_u"
+            v_dof = f"{node}_v"
+            phi_dof = f"{node}_phi"
+
+            column_names += [u_dof, v_dof, phi_dof]
+            index_names += [u_dof, v_dof, phi_dof]
+
+        matrix_df = pd.DataFrame(
+            data=local_matrix, columns=column_names, index=index_names)
+
+        return matrix_df
 
 
 class Portico():
     def __init__(self, delta, start_node, end_node, theta, element_name):
 
         self.delta = delta
-        self.stiffness_matrix_list = self.generate_local_stiffness_matrix()
         self.start_node = start_node
         self.end_node = end_node
         self.E = 210   # Parâmetro do ACO SAE 1045

@@ -55,7 +55,7 @@ def trelica_rotation_matrix(theta):
     T[2, :] = [0, 0, np.cos(theta), np.sin(theta)]
     T[3, :] = [0, 0, -np.sin(theta), np.cos(theta)]
 
-    return np.round(T)
+    return T
 
 
 def generate_global_stiffness_matrix(nodes_list, local_matrixes):
@@ -67,9 +67,7 @@ def generate_global_stiffness_matrix(nodes_list, local_matrixes):
 
         initial_index = 2*component_nodes[0]
         final_index = matrix_end + initial_index
-        print(KG[initial_index: final_index,
-                 initial_index: final_index])
-
+        
         KG[initial_index: final_index,
            initial_index: final_index] += matrix
 
@@ -82,8 +80,9 @@ rotated_1 = np.matmul(np.matmul(np.transpose(
     t_inclination_1), stiff_1), t_inclination_1)
 
 
-stiff_2 = rigidez_trelica_matrix(E=10, A=1, L=1)
-t_inclination_2 = trelica_rotation_matrix(90)
+stiff_2 = rigidez_trelica_matrix(E=10, A=1, L=2)
+t_inclination_2 = trelica_rotation_matrix(120)
+
 rotated_2 = np.matmul(np.matmul(np.transpose(
     t_inclination_2), stiff_2), t_inclination_2)
 

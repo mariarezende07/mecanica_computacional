@@ -2,43 +2,40 @@ import numpy as np
 import pandas as pd
 
 
-def rigidez_trelica_matrix(E, A, L):
-    K = np.zeros(shape=(6, 6))
+class Trelica():
+    def __init__(self, A, E, L):
+        self.A = A
+        self.E = E
+        self.L = L
+        
+    def 
+        
+    def rigidez_trelica_matrix(self, E, A, L):
+        K = np.zeros(shape=(6, 6))
 
-    K[0, :] = [1, 0, 0, -1, 0, 0]
-    K[3, :] = [1, 0, 0, 1, 0, 0]
+        K[0, :] = [1, 0, 0, -1, 0, 0]
+        K[3, :] = [1, 0, 0, 1, 0, 0]
 
-    K *= (E * A)/L
+        K *= (E * A)/L
 
-    return K
+        return K
 
+    def trelica_rotation_matrix(self, theta):
+        T = np.zeros(shape=(6, 6))
+        theta = np.radians(theta)
+        T[0, :] = [np.cos(theta), np.sin(theta), 0, 0, 0, 0]
+        T[1, :] = [- np.sin(theta), np.cos(theta), 0, 0, 0, 0]
+        T[2, 2] = 1
+        T[3, :] = [0, 0, 0, np.cos(theta), np.sin(theta), 0]
+        T[4, :] = [0, 0, 0, -np.sin(theta), np.cos(theta), 0]
+        T[5, 5] = 1
 
-def trelica_rotation_matrix(theta):
-    T = np.zeros(shape=(6, 6))
-    theta = np.radians(theta)
-    T[0, :] = [np.cos(theta), np.sin(theta), 0, 0, 0, 0]
-    T[1, :] = [- np.sin(theta), np.cos(theta), 0, 0, 0, 0]
-    T[2, 2] = 1
-    T[3, :] = [0, 0, 0, np.cos(theta), np.sin(theta), 0]
-    T[4, :] = [0, 0, 0, -np.sin(theta), np.cos(theta), 0]
-    T[5, 5] = 1
-
-    return T
-
-
-
-
-
-
-
-
-
+        return T
 
 
 class Portico():
-    
     def __init__(self, delta, start_node, end_node, theta, element_name):
-        
+
         self.delta = delta
         self.stiffness_matrix_list = self.generate_local_stiffness_matrix()
         self.start_node = start_node
@@ -46,26 +43,28 @@ class Portico():
         self.E = 210   # Parâmetro do ACO SAE 1045
         self.theta = theta
         self.element_name = element_name
-    
+
     def generate_stiffness_matrix(self):
         # Discretiza o dominio de acordo com delta, gerando listas de nos que serao feitas
         nodes_list = self.discretize_portico(self.start_node, self.end_node)
-        
+
         local_matrixes = []
         # Com a lista de nos, gera uma matriz local para cada elemento discretizado
         for element_nodes in nodes_list:
-            
+
             # Calcula parametros que vao mudar com o elemento
             I, A = self.identify_element(self.element_name)
-                  
+
             # Gera a matriz local e rotaciona de acordo com a necessidade
-            stiff_matrix = self.rigidez_portico_matrix(self.E, A, self.delta, I)
+            stiff_matrix = self.rigidez_portico_matrix(
+                self.E, A, self.delta, I)
             rotation_matrix = self.rotate_portico_matrix(self.theta)
-            
+
             stiffness_matrix = np.matmul(np.matmul(np.transpose(
                 rotation_matrix), stiff_matrix), rotation_matrix)
-            
-            df_matrix = self.generate_dataframe_from_matrix(stiffness_matrix, element_nodes)
+
+            df_matrix = self.generate_dataframe_from_matrix(
+                stiffness_matrix, element_nodes)
             local_matrixes.append(df_matrix)
 
         # Usa todas as matrizes locais e gera uma global para o elemento de portico
@@ -75,6 +74,7 @@ class Portico():
     def generate_global_matrix(matrixes_list):
         global_matrix = pd.concat(matrixes_list).groupby(level=0).sum()
         return global_matrix
+
     def generate_dataframe_from_matrix(self, local_matrix, nodes):
 
         column_names = []
@@ -91,7 +91,7 @@ class Portico():
             data=local_matrix, columns=column_names, index=index_names)
 
         return matrix_df
-    
+
     def rotate_portico_matrix(theta):
         T = np.zeros(shape=(6, 6))
         theta = np.radians(theta)
@@ -144,3 +144,10 @@ class Portico():
 
         return np.array(node_list)
 
+# General - Aqui vamos gerar os elementos de porticos e trelicas necessarios,
+# definiremos os nos e as posicoes de cada portico e iremos juntar a matriz global aqui mesmo
+
+
+def generate_global_matrix(matrixes_list):
+    global_matrix = pd.concat(matrixes_list).groupby(level=0).sum()
+    return global_matrix

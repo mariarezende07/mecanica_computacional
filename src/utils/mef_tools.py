@@ -39,10 +39,10 @@ def portico_rotation_matrix(theta):
 
 
 def rigidez_trelica_matrix(E, A, L):
-    K = np.zeros(shape=(4, 4))
+    K = np.zeros(shape=(6, 6))
 
-    K[0, :] = [1, 0, -1, 0]
-    K[2, :] = [1, 0, 1, 0]
+    K[0, :] = [1, 0, 0, -1, 0, 0]
+    K[3, :] = [1, 0, 0, 1, 0, 0]
 
     K *= (E * A)/L
 
@@ -50,52 +50,31 @@ def rigidez_trelica_matrix(E, A, L):
 
 
 def trelica_rotation_matrix(theta):
-    T = np.zeros(shape=(4, 4))
+    T = np.zeros(shape=(6, 6))
     theta = np.radians(theta)
-
-    T[0, :] = [np.cos(theta), np.sin(theta), 0, 0]
-    T[1, :] = [-np.sin(theta), np.cos(theta), 0, 0]
-    T[2, :] = [0, 0, np.cos(theta), np.sin(theta)]
-    T[3, :] = [0, 0, -np.sin(theta), np.cos(theta)]
+    T[0, :] = [np.cos(theta), np.sin(theta), 0, 0, 0, 0]
+    T[1, :] = [- np.sin(theta), np.cos(theta), 0, 0, 0, 0]
+    T[2, 2] = 1
+    T[3, :] = [0, 0, 0, np.cos(theta), np.sin(theta), 0]
+    T[4, :] = [0, 0, 0, -np.sin(theta), np.cos(theta), 0]
+    T[5, 5] = 1
 
     return T
 
 
-def calculate_dof(local_matrixes):
-    porticos = 0
-    trelicas = 0
-    nodes = []
-    for matrix, component_nodes in local_matrixes:
-        if np.shape(matrix)[0] == 4:
-            trelicas += 1
-        if np.shape(matrix)[0] == 6:
-            porticos += 1
-        nodes.append(component_nodes)
+def generate_global_stiffness_matrix(nodes_list, local_matrixes):
 
-    flatten_matrix = [num for row in matrix for num in row]
-
-    # Count the occurrences of each number
-    count = Counter(flatten_matrix)
-
-    # Filter the numbers with more than one occurrence
-    count_duplicates = [num for num,
-                        occurrence in count.items() if occurrence > 1]
-
-    reccurences = len(count_duplicates)
-    dof = (porticos + 1) * 3 + (trelicas + 1) * 2 - reccurences
-    return dof
-
-
-def generate_global_stiffness_matrix(nodes_list, local_matrixes, dof):
-
-    dof = calculate_dof(local_matrixes)
+    dof = 9
     KG = np.zeros(shape=(dof, dof))
-    
+
     for matrix, component_nodes in local_matrixes:
         matrix_end = len(matrix[0])
 
-        initial_index = dof*component_nodes[0]
+        initial_index = int(component_nodes[0] * (dof/3))
         final_index = matrix_end + initial_index
+
+        print(initial_index)
+        print(final_index)
 
         KG[initial_index: final_index,
            initial_index: final_index] += matrix
@@ -117,4 +96,4 @@ rotated_2 = np.matmul(np.matmul(np.transpose(
 
 
 print(generate_global_stiffness_matrix([0, 1, 2], [
-      (rotated_1, [1, 2]), (rotated_2, [0, 1])], 3))
+      (rotated_1, [1, 2]), (rotated_2, [0, 1])]))

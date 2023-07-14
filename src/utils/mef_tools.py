@@ -1,6 +1,5 @@
 import numpy as np
-from collections import Counter
-
+import pandas as pd
 
 def rigidez_portico_matrix(E, A, L, I):
 
@@ -62,25 +61,49 @@ def trelica_rotation_matrix(theta):
     return T
 
 
-def generate_global_stiffness_matrix(nodes_list, local_matrixes):
+def generate_dataframe_from_matrix(local_matrix, nodes):
 
-    dof = 9
-    KG = np.zeros(shape=(dof, dof))
+    column_names = []
+    index_names = []
+    for node in nodes:
+        u_dof = f"{node}_u"
+        v_dof = f"{node}_v"
+        phi_dof = f"{node}_phi"
 
-    for matrix, component_nodes in local_matrixes:
-        matrix_end = len(matrix[0])
+        column_names += [u_dof, v_dof, phi_dof]
+        index_names += [u_dof, v_dof, phi_dof]
 
-        initial_index = int(component_nodes[0] * (dof/3))
-        final_index = matrix_end + initial_index
+    matrix_df = pd.DataFrame(
+        data=local_matrix, columns=column_names, index=index_names)
 
-        print(initial_index)
-        print(final_index)
+    return matrix_df
 
-        KG[initial_index: final_index,
-           initial_index: final_index] += matrix
 
-    return KG
+def discretize_portico(start_node, end_node, delta_x):
+    x_start, y_start = start_node
+    x_end, y_end = end_node
 
+    length = np.sqrt((x_end - x_start) ** 2 + (y_end - y_start) ** 2)
+    num_elements = int(length / delta_x)
+
+    node_list = []
+
+    dx = (x_end - x_start) / num_elements
+    dy = (y_end - y_start) / num_elements
+
+    for i in range(num_elements + 1):
+        x = x_start + i * dx
+        y = y_start + i * dy
+        node_list.append([x, y])
+
+    return np.array(node_list)
+
+
+def generate_global_matrix(matrixes_list):
+    global_matrix = pd.concat(matrixes_list).groupby(level=0).sum()
+    return global_matrix
+
+class Portico():
 
 stiff_1 = rigidez_trelica_matrix(E=5, A=4, L=4)
 t_inclination_1 = trelica_rotation_matrix(60)
@@ -95,5 +118,5 @@ rotated_2 = np.matmul(np.matmul(np.transpose(
     t_inclination_2), stiff_2), t_inclination_2)
 
 
-print(generate_global_stiffness_matrix([0, 1, 2], [
-      (rotated_1, [1, 2]), (rotated_2, [0, 1])]))
+df1 = generate_dataframe_from_matrix(rotated_2, [0, 1])
+df2 = generate_dataframe_from_matrix(rotated_1, [1, 7])

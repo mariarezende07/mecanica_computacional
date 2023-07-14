@@ -89,14 +89,19 @@ class Trelica():
 
     def generate_dataframe_from_matrix(self, local_matrix, nodes):
 
-        column_names = []
-        index_names = []
-        for node in nodes:
-            u_dof = f"{node}_1u"
-            v_dof = f"{node}_2v"
+        node_id_1 = 1/2*(nodes[0][0]+nodes[0][1]) * \
+            (nodes[0][0]+nodes[0][1]+1) + nodes[0][1]
+        node_id_2 = 1/2*(nodes[1][0]+nodes[1][1]) * \
+            (nodes[1][0]+nodes[1][1]+1) + nodes[1][1]
 
-            column_names += [u_dof, v_dof]
-            index_names += [u_dof, v_dof]
+        u_dof_1 = f"{node_id_1}_1u"
+        v_dof_1 = f"{node_id_1}_2v"
+
+        u_dof_2 = f"{node_id_2}_1u"
+        v_dof_2 = f"{node_id_2}_2v"
+
+        column_names = [u_dof_1, v_dof_1, u_dof_2, v_dof_2]
+        index_names = [u_dof_1, v_dof_1, u_dof_2, v_dof_2]
 
         matrix_df = pd.DataFrame(
             data=local_matrix, columns=column_names, index=index_names)
@@ -138,7 +143,6 @@ class Portico():
                 stiffness_matrix, element_nodes)
             local_matrixes.append(df_matrix)
 
-            
             if df_matrix.index.duplicated().any():
                 print(df_matrix)
         # Usa todas as matrizes locais e gera uma global para o elemento de portico
@@ -501,7 +505,8 @@ def extract_modes_frequencies(inertia_matrix, stiffness_matrix, num_modes):
 num_modes = 6
 
 # Extrai as frequências naturais e modos de vibração
-frequencies, modes = extract_modes_frequencies(inercia, rigidez, num_modes)
+frequencies, modes = extract_modes_frequencies(
+    global_mass_matrix, global_stiffness_matrix, num_modes)
 
 # Imprime as frequências naturais e modos de vibração
 print("Frequências Naturais:")
